@@ -1,0 +1,48 @@
+# Configuración única de los tres DAGs (entrenamiento, inferencia y monitoreo).
+airflow:
+  dag_owner: "mlops-urp"
+  retries: 1
+  retry_delay_minutes: 2
+
+mlflow:
+  tracking_uri: "sqlite:///mlflow/mlflow.db"   # en docker compose se reemplaza por MLFLOW_TRACKING_URI
+  exp_training: "URP_MCD_2602_entrenamiento"
+  exp_inference: "URP_MCD_2602_inferencia"
+  exp_monitoring: "URP_MCD_2602_monitoreo"
+  model_name: "urp_mcd_2602_propension"
+  champion_alias: "champion"
+
+data:
+  raw_dir: "data/raw"                  # p1_extrac.csv ... p10_extrac.csv (Drive del curso)
+  processed_dir: "data/processed"
+  inference_dir: "data/inference"      # salidas por periodo: data/inference/p7/...
+  monitoring_dir: "data/monitoring"    # reportes por periodo: data/monitoring/p7/...
+  target_col: "target_venta"
+  # identificadores, targets y variables que solo existen después de la venta (leakage)
+  drop_cols: [partition, tip_doc, key_value, codunicocli,
+              target_venta, target_copamiento, copamiento, monto_aceptado]
+  training_periods: [1, 2, 3, 4, 5]
+  max_rows_train: 30000                # muestra para que el entrenamiento dure minutos
+
+training:
+  n_iter_hpo: 3
+  cv_folds: 3
+  n_jobs: -1
+  test_size: 0.2
+  random_state: 42
+  decay_threshold: 10.0
+  use_gpu: auto
+
+inference:
+  default_period: 7
+
+monitoring:
+  reference_period: 6                  # D10: mes OOT, no usado en el entrenamiento
+  stages: [raw, preprocessed, score, grupo_ejec]
+  psi_quantils: 10
+  score_col: "score"
+  grupo_col: "grupo_ejec"
+  puntuacion_col: "puntuacion"
+  rolling_window: 3                    # periodos para el PSI móvil
+  inference_cores: 1                   # núcleos reservados para la inferencia (0..n-1)
+  pin_cores: true                      # cada etapa de monitoreo en un núcleo distinto

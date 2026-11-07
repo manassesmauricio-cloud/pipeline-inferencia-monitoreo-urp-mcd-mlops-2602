@@ -1,0 +1,68 @@
+# Pipeline de inferencia y monitoreo - URP-MCD MLOps 2602
+#   postgres -> base de datos de Airflow (necesaria para correr tareas en paralelo)
+#   mlflow   -> tracking + Model Registry (UI en http://localhost:5000)
+#   airflow  -> scheduler + webserver con LocalExecutor (UI en http://localhost:8080, admin/admin)
+#
+# Con SQLite, Airflow solo puede usar SequentialExecutor (una tarea a la vez).
+# Con Postgres usa LocalExecutor: varias tareas a la vez, cada una en su propio proceso.
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow"]
+      interval: 5s
+      retries: 10
+
+  mlflow:
+    build:
+      context: .
+      dockerfile: Dockerfile.mlflow
+    image: urp-mcd-mlops-2602-mlflow:latest
+    command: >
+      mlflow server --host 0.0.0.0 --port 5000
+      --backend-store-uri sqlite:////mlflow/mlflow.db
+      --artifacts-destination /mlflow/artifacts
+      --serve-artifacts
+      --allowed-hosts "*"
+    ports:
+      - "5000:5000"
+    volumes:
+      - mlflow_data:/mlflow
+
+  airflow:
+    build: .
+    image: urp-mcd-mlops-2602:latest
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mlflow:
+        condition: service_started
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+      AIRFLOW__CORE__PARALLELISM: "8"
+      AIRFLOW__CORE__MAX_ACTIVE_TASKS_PER_DAG: "8"
+      AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "False"
+      AIRFLOW__CORE__DAGS_FOLDER: /app/dags
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      GIT_PYTHON_REFRESH: quiet
+    command: >
+      bash -c "airflow db migrate &&
+      (airflow users create -u admin -p admin -f Admin -l URP -r Admin -e admin@urp.edu.pe || true) &&
+      airflow standalone"
+    ports:
+      - "8080:8080"
+    volumes:
+      - .:/app
+
+volumes:
+  pg_data:
+  mlflow_data:

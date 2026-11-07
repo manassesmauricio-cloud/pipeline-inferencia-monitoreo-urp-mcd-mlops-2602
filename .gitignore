@@ -1,0 +1,17 @@
+__pycache__/
+.venv/
+catboost_info/
+mlruns/
+*.pyc
+.env
+*.pkl
+*.joblib
+
+data/raw/*.csv
+data/processed/
+data/inference/
+data/monitoring/
+
+mlflow/
+airflow_home/
+*.ipynb_checkpoints/

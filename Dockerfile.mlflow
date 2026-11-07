@@ -1,0 +1,5 @@
+# Servidor de MLflow en su propia imagen: Airflow 2 fija SQLAlchemy 1.4 y el
+# servidor de MLflow 3 necesita SQLAlchemy 2. Airflow solo usa el cliente (HTTP).
+FROM python:3.11-slim
+RUN pip install --no-cache-dir mlflow==3.18.0
+EXPOSE 5000
