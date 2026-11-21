@@ -1,0 +1,8 @@
+# Dependencias livianas para las pruebas del CI (sin Airflow ni librerías de modelos).
+pandas>=2.1,<3.0
+numpy>=1.26
+scipy>=1.12
+pyyaml>=6.0
+psutil>=5.9
+dask[dataframe]>=2024.1
+pytest>=8.0

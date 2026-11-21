@@ -77,3 +77,22 @@ docker compose exec airflow airflow dags trigger inference_pipeline -c '{\"perio
 - El servidor de MLflow tiene su propia imagen (`Dockerfile.mlflow`): Airflow 2 fija SQLAlchemy 1.4 y el servidor de MLflow 3 necesita SQLAlchemy 2.
 - `pandas<3`: en pandas 3 las columnas de texto ya no son `object` y el preprocesamiento heredado dejaría de crear dummies.
 - Puerto ocupado: cambiar solo el lado izquierdo del mapeo en `docker-compose.yml` (por ejemplo `8081:8080`).
+
+## Integración continua (GitHub Actions)
+
+El workflow `.github/workflows/ci.yml` corre en cada push o pull request a `main`:
+
+| Job | Qué hace | Tiempo aprox. |
+|---|---|---|
+| `pruebas` | `pytest` sobre el PSI, los estados del semáforo, el posprocesamiento TLV y la configuración (`tests/`), con dependencias livianas (`requirements-ci.txt`) | 1 min |
+| `imagen` | `docker build` de la imagen de Airflow y `tests/validar_dags.py`, que falla si algún DAG no carga | 6-8 min |
+
+Para correr lo mismo en local:
+
+```bash
+pip install -r requirements-ci.txt && pytest -q tests
+docker build -t pipeline-inferencia:ci .
+docker run --rm -v "$PWD":/app -w /app pipeline-inferencia:ci python tests/validar_dags.py
+```
+
+El CI no usa el dataset real ni entrena modelos: valida el código y la imagen. El entrenamiento, la inferencia y el monitoreo siguen corriendo en Airflow.
