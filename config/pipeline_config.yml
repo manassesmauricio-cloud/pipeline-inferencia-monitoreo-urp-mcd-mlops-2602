@@ -17,10 +17,11 @@ data:
   processed_dir: "data/processed"
   inference_dir: "data/inference"      # salidas por periodo: data/inference/p7/...
   monitoring_dir: "data/monitoring"    # reportes por periodo: data/monitoring/p7/...
-  target_col: "target_venta"
-  # identificadores, targets y variables que solo existen después de la venta (leakage)
-  drop_cols: [partition, tip_doc, key_value, codunicocli,
-              target_venta, target_copamiento, copamiento, monto_aceptado]
+  target_col: "target"                 # target del dataset del curso (desde el próximo ciclo: target_venta_1)
+  # identificadores, fechas técnicas, targets y variables que solo existen después de la venta (leakage).
+  # Se listan también los nombres de versiones anteriores del dataset; los que no existen se ignoran.
+  drop_cols: [partition, tip_doc, key_value, codunicocli, p_fecinformacion, fch_creacion,
+              target, target_venta, target_venta_1, target_copamiento, copamiento, monto_aceptado]
   training_periods: [1, 2, 3, 4, 5]
   max_rows_train: 30000                # muestra para que el entrenamiento dure minutos
 
