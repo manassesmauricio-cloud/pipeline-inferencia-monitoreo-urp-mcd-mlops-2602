@@ -15,3 +15,7 @@ data/monitoring/
 mlflow/
 airflow_home/
 *.ipynb_checkpoints/
+
+# S14: resultados del CD autohospedado (se publican en GitHub Pages, no se versionan)
+salidas/
+*.parcial

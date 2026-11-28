@@ -1,0 +1,68 @@
+# S14 - CI/CD de punta a punta en una máquina propia (runner autohospedado) y publicación en GitHub Pages.
+#   ci (mi máquina)  : imagen, pytest, DAG que cargan y datos reales descargados de Drive
+#   cd (mi máquina)  : despliega imagen y DAG en Airflow, CT opcional, gate del champion, inferencia y monitoreo
+#   publicar (GitHub): publica la página de la corrida en GitHub Pages
+# El CI de la S13 (ci.yml) sigue corriendo en los servidores de GitHub en cada push.
+name: CD autohospedado (S14)
+
+on:
+  workflow_dispatch:
+    inputs:
+      entrenar:
+        description: "CT: auto (solo si no hay champion), si o no"
+        default: auto
+        type: choice
+        options: [auto, si, "no"]
+  push:
+    branches: [main]
+    paths: ["dags/**", "src/**", "config/**", "scripts/**", "Dockerfile", "requirements.txt"]
+
+concurrency: cd-autohospedado          # un solo despliegue a la vez en la máquina
+
+jobs:
+  ci:
+    runs-on: [self-hosted, urp-mlops]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          clean: false                 # conserva data/raw: los meses ya descargados de Drive no se vuelven a bajar
+      - name: Imagen, pruebas, DAG y datos reales
+        shell: bash
+        run: bash scripts/ci_local.sh
+
+  cd:
+    needs: ci
+    runs-on: [self-hosted, urp-mlops]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          clean: false
+      - name: Despliegue, CT, gate, inferencia y monitoreo
+        shell: bash
+        env:
+          ENTRENAR: ${{ inputs.entrenar || 'auto' }}
+        run: bash scripts/cd_local.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sitio
+          path: salidas/sitio/
+
+  publicar:
+    needs: cd
+    runs-on: ubuntu-latest             # este paso sí corre en un servidor de GitHub
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: sitio
+          path: _site
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deploy
+        uses: actions/deploy-pages@v4

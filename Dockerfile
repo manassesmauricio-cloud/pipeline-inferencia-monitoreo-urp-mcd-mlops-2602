@@ -15,3 +15,6 @@ ENV AIRFLOW_HOME=/opt/airflow \
 
 WORKDIR /app
 EXPOSE 8080 5000
+
+# S14: descarga de los datos desde el Drive del curso (capa aparte para reutilizar la caché de las dependencias base).
+RUN pip install --no-cache-dir gdown==5.2.0 pytest==8.3.3
