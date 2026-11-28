@@ -13,7 +13,8 @@ mlflow:
   champion_alias: "champion"
 
 data:
-  raw_dir: "data/raw"                  # p1_extrac.csv ... p10_extrac.csv (Drive del curso)
+  raw_dir: "data/raw"                  # caché local de los pN_extrac.csv (no se versiona)
+  drive_folder: "1ZaKpwjUIt754fDc947y2FTFPLOmksig-"   # S14: carpeta del curso en Drive; los datos siempre se bajan de aquí
   processed_dir: "data/processed"
   inference_dir: "data/inference"      # salidas por periodo: data/inference/p7/...
   monitoring_dir: "data/monitoring"    # reportes por periodo: data/monitoring/p7/...
@@ -36,6 +37,10 @@ training:
 
 inference:
   default_period: 7
+
+# S14: CD autohospedado. Gate automático: el champion entrenado debe superar este AUC de test para seguir.
+cd:
+  auc_minimo: 0.70
 
 monitoring:
   reference_period: 6                  # D10: mes OOT, no usado en el entrenamiento

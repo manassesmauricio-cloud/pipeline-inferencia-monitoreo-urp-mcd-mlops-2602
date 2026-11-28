@@ -58,9 +58,8 @@ def _load_champion():
 
 def task_validar(**ctx):
     t0 = _start("validar_entrada", ctx)
-    p = raw_path(_cfg, _period(ctx))
-    if not os.path.exists(p):
-        raise FileNotFoundError(f"No existe {p}. Copie p{_period(ctx)}_extrac.csv del Drive en data/raw/")
+    from src.drive import asegurar_mes
+    asegurar_mes(_cfg, _period(ctx))          # S14: descarga el mes desde el Drive del curso si falta
     return round(time.time() - t0, 2)
 
 

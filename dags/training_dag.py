@@ -39,7 +39,9 @@ def task_preprocess(**ctx):
     periods = d["training_periods"]
     n_per = d["max_rows_train"] // len(periods)
     frames = []
+    from src.drive import asegurar_mes
     for p in periods:
+        asegurar_mes(_cfg, p)                  # S14: descarga el mes desde el Drive del curso si falta
         df = pd.read_csv(raw_path(_cfg, p), low_memory=False)
         frames.append(df.sample(n=min(n_per, len(df)), random_state=t["random_state"]))
         print(f"p{p}: {len(df):,} filas -> muestra {len(frames[-1]):,}")

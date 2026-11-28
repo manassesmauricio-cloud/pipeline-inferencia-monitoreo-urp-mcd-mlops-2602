@@ -48,3 +48,10 @@ def setup_mlflow(cfg, experiment):
     mlflow.set_tracking_uri(uri)
     mlflow.set_experiment(experiment)
     return uri
+
+
+def config_hash_texto():
+    """S14: hash corto de la configuración (trazabilidad de cada corrida del CD)."""
+    import hashlib
+    with open(os.path.join(PROJECT_ROOT, "config", "pipeline_config.yml"), "rb") as f:
+        return hashlib.sha256(f.read().replace(bytes([13, 10]), b"\n")).hexdigest()[:12]
