@@ -3,6 +3,17 @@
 **MCD-402 · 2026-2 · Universidad Ricardo Palma**
 
 Continuación del [pipeline de entrenamiento](https://github.com/manassesmauricio-cloud/pipeline-entrenamiento-urp-mcd-mlops-2602).
+
+**Repositorio vivo del curso.** El proyecto empezó en el pipeline de entrenamiento y continúa aquí:
+
+| Clase | Qué se agregó |
+|---|---|
+| S1 a S8 | Pipeline de entrenamiento (AutoML, Airflow, MLflow), heredado como `dags/training_dag.py` |
+| S11 | Inferencia y monitoreo centralizado con drift en paralelo |
+| S13 | CI en GitHub Actions: pruebas, imagen y DAG (`.github/workflows/ci.yml`) |
+| S14 | Datos desde el Drive, CI/CD en un runner autohospedado y publicación en GitHub Pages (`.github/workflows/cd-autohospedado.yml`) |
+
+Repos auxiliares: [taller-docker](https://github.com/manassesmauricio-cloud/taller-docker) (S8) y [demo-github-actions](https://github.com/manassesmauricio-cloud/demo-github-actions-urp-mcd-mlops-2602) (S13, cómo activar Actions y Pages).
 Aquí el modelo ya existe: se usa para **inferir** sobre meses nuevos y se **monitorea** el data drift.
 
 ```
@@ -37,14 +48,13 @@ docker-compose.yml           <- postgres + mlflow + airflow
 ## Requisitos
 
 - Docker Desktop con al menos 4 núcleos y 8 GB de RAM asignados.
-- Archivos `p1_extrac.csv` ... `p7_extrac.csv` del Drive del curso en `data/raw/`.
+- Conexión a internet: los meses `pN_extrac.csv` se descargan solos de la carpeta del curso en Drive (`data.drive_folder`) la primera vez que un DAG los necesita, y quedan en `data/raw/`.
 
 ## Ejecución
 
 ```powershell
 git clone https://github.com/manassesmauricio-cloud/pipeline-inferencia-monitoreo-urp-mcd-mlops-2602.git
 cd pipeline-inferencia-monitoreo-urp-mcd-mlops-2602
-# copiar los CSV en data/raw/
 docker compose up -d --build
 ```
 
@@ -96,3 +106,42 @@ docker run --rm -v "$PWD":/app -w /app pipeline-inferencia:ci python tests/valid
 ```
 
 El CI no usa el dataset real ni entrena modelos: valida el código y la imagen. El entrenamiento, la inferencia y el monitoreo siguen corriendo en Airflow.
+
+## S14: CI/CD autohospedado y GitHub Pages
+
+El CI de la S13 corre en un **servidor de GitHub**: no tiene los datos ni el Airflow del proyecto. El workflow `.github/workflows/cd-autohospedado.yml` corre en **una máquina propia** (runner autohospedado):
+
+```
+push o ejecución manual
+  ci (mi máquina):        imagen -> pytest -> DAG que cargan -> descarga y valida los meses reales de Drive
+  cd (mi máquina):        despliega imagen y DAG en Airflow -> CT (si se pide) -> gate del champion
+                          -> inferencia p6 y p7 -> monitoreo -> página de la corrida
+  publicar (GitHub):      publica la página en GitHub Pages
+```
+
+| Pieza | Archivo |
+|---|---|
+| Descarga desde Drive | `src/drive.py` (`asegurar_mes`) |
+| CI con datos reales | `scripts/ci_local.sh`, `scripts/validar_datos_drive.py` |
+| CD, CT y gate | `scripts/cd_local.sh`, `scripts/gate_champion.py` (`cd.auc_minimo` en la configuración) |
+| Página interactiva | `scripts/reporte_pages.py`, `scripts/plantilla_pages.html` |
+| Runner | `runner/registrar_runner.ps1`, `runner/quitar_runner.ps1` |
+
+### Ensayo local (sin GitHub)
+
+```bash
+bash scripts/correr_como_runner.sh
+```
+
+### Con el runner autohospedado
+
+1. **Activar GitHub Pages** (una vez): Settings -> Pages -> Source: **GitHub Actions**, o `gh api -X POST repos/<usuario>/<repo>/pages -f build_type=workflow`.
+2. **Proteger el repo**: Settings -> Actions -> General -> *Fork pull request workflows from outside collaborators* -> **Require approval for all outside collaborators**.
+3. **Registrar el runner** (PowerShell): `cd runner` y `.\registrar_runner.ps1 -Repo <usuario>/<repo>`; luego `cd $env:USERPROFILE\actions-runner-s14` y `.\run.cmd`.
+4. **Disparar**: `gh workflow run cd-autohospedado.yml -f entrenar=auto` y `gh run watch`.
+5. **Romper el gate a propósito**: subir `cd.auc_minimo` a `0.99`. El CD se detiene en el gate y la página no se actualiza.
+6. **Al terminar**: `Ctrl+C` en el runner y `.\quitar_runner.ps1 -Repo <usuario>/<repo>`.
+
+**Seguridad:** un runner autohospedado en un repo público permite que un pull request desde un fork ejecute código en tu máquina. En sus proyectos se usa **solo con repos privados**. En esta demo el runner se enciende solo durante la clase, con la aprobación de externos activada, y se da de baja al final.
+
+**CT:** por defecto (`entrenar=auto`) solo se entrena si no hay champion. El reentrenamiento no se dispara en cada push: es una decisión. En el Proyecto Final lo dispara la política de gatillo.
