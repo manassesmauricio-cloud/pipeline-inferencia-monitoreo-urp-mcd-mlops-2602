@@ -27,8 +27,10 @@ else
 fi
 echo "== 3/5 Gate del despliegue"
 py scripts/gate_champion.py
-echo "== 4/5 Inferencia del mes de referencia y del mes nuevo (dispara el monitoreo)"
-for p in 6 7; do
+# Meses desde la configuración: monitoring.reference_period e inference.default_period
+MESES=$(py -c "from src.config import load_config as c; x=c(); print(x['monitoring']['reference_period'], x['inference']['default_period'])" | tr -d '\r')
+echo "== 4/5 Inferencia del mes de referencia y del mes nuevo: p${MESES// / y p} (dispara el monitoreo)"
+for p in $MESES; do
   af dags trigger inference_pipeline -r "inf_p${p}_$RUN" -c "{\"period\": $p}" > /dev/null && esperar inference_pipeline "inf_p${p}_$RUN"
 done
 MON=$(af dags list-runs -d monitoring_pipeline -o plain | awk '$1=="monitoring_pipeline" {print $2; exit}')
