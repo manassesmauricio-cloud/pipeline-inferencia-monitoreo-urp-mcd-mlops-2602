@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Corridas del CD</title>
+<style>
+:root{--fondo:#f6f8fa;--panel:#fff;--texto:#1f2937;--suave:#5b6472;--borde:#d8dee4;--teal:#0f8b8d;--ambar:#c97a0a;--rojo:#c0392b;--verde:#2e8b57}
+@media (prefers-color-scheme:dark){:root{--fondo:#11161d;--panel:#1a212b;--texto:#e6edf3;--suave:#9aa5b1;--borde:#2d3742}}
+*{box-sizing:border-box}body{margin:0;background:var(--fondo);color:var(--texto);font:15px/1.5 system-ui,Segoe UI,Arial,sans-serif}
+header{padding:20px 16px;max-width:1100px;margin:auto}h1{margin:0;font-size:24px}header p{margin:4px 0 0;color:var(--suave)}
+main{max-width:1100px;margin:auto;padding:0 16px 32px}
+.barra{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:16px}
+select,button{font:inherit;padding:6px 10px;border-radius:6px;border:1px solid var(--borde);background:var(--panel);color:var(--texto);cursor:pointer}
+button.activo{background:var(--teal);color:#fff;border-color:var(--teal)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
+.card{background:var(--panel);border:1px solid var(--borde);border-radius:10px;padding:14px;overflow-x:auto}
+.card h3{margin:0 0 6px;font-size:14px;color:var(--suave);font-weight:600}.kpi{font-size:26px;font-weight:700}
+.chip{display:inline-block;padding:2px 10px;border-radius:999px;font-size:13px;font-weight:600;color:#fff;background:var(--suave)}
+.OK{background:var(--verde)}.WARN{background:var(--ambar)}.ALARM{background:var(--rojo)}
+table{width:100%;border-collapse:collapse}td,th{padding:8px;border-bottom:1px solid var(--borde);text-align:left;vertical-align:top}
+.pista{height:10px;background:var(--borde);border-radius:5px;position:relative;margin-top:8px}
+.relleno{height:10px;border-radius:5px;background:var(--teal)}.umbral{position:absolute;top:-4px;width:2px;height:18px;background:var(--rojo)}
+.nota{color:var(--suave);font-size:13px}.panel{display:none}.panel.visible{display:block}a{color:var(--teal)}
+</style>
+</head>
+<body>
+<header>
+  <h1>Pipeline de inferencia y monitoreo: corridas del CD autohospedado</h1>
+  <p>Cada corrida: CI con datos reales, despliegue de los DAG, gate del champion, inferencia y monitoreo. GitHub Pages publica esta página al final del workflow.</p>
+</header>
+<main>
+  <div class="barra">
+    <label for="corrida">Corrida:</label><select id="corrida"></select>
+    <button data-panel="cicd" class="activo">CI/CD</button><button data-panel="monitoreo">Monitoreo</button><button data-panel="traza">Trazabilidad</button>
+  </div>
+  <section id="cicd" class="panel visible">
+    <div class="grid">
+      <div class="card"><h3>1. Gate del champion (AUC de test)</h3><div class="kpi" id="auc"></div><div class="pista"><div class="relleno" id="relleno"></div><div class="umbral" id="umbral"></div></div><div class="nota" id="aucnota"></div></div>
+      <div class="card"><h3>2. Champion en producción</h3><div class="kpi" id="champion"></div><div class="nota" id="modelo"></div></div>
+      <div class="card"><h3>3. Mes monitoreado</h3><div class="kpi" id="periodo"></div><div class="nota" id="refnota"></div></div>
+      <div class="card"><h3>4. Alerta del mes</h3><div id="alerta"></div><div class="nota">La peor etapa del monitoreo (OK, WARN o ALARM)</div></div>
+    </div>
+  </section>
+  <section id="monitoreo" class="panel">
+    <div class="card"><h3>PSI por etapa del monitoreo centralizado (S11)</h3>
+      <table><thead><tr><th>Etapa</th><th>PSI</th><th>Estado</th><th>Variables con más drift</th></tr></thead><tbody id="tabla"></tbody></table>
+      <p class="nota">OK: menor a 0.10 · WARN: de 0.10 a 0.25 · ALARM: 0.25 o más. Es la vista de la corrida; el tablero de monitoreo de su proyecto va aparte.</p></div>
+  </section>
+  <section id="traza" class="panel"><div class="card"><table><tbody id="trazab"></tbody></table></div></section>
+</main>
+<script>
+const H = __HISTORIAL__;
+const $ = id => document.getElementById(id);
+const sel = $("corrida");
+H.slice().reverse().forEach((h, i) => { const o = document.createElement("option"); o.value = H.length - 1 - i;
+  o.textContent = `${h.fecha} · commit ${h.commit} · alerta ${h.alerta}`; sel.appendChild(o); });
+function pintar(h) {
+  const g = h.gate;
+  $("auc").textContent = g.auc_test.toFixed(4);
+  $("relleno").style.width = Math.min(100, g.auc_test * 100) + "%";
+  $("umbral").style.left = (g.auc_minimo * 100) + "%";
+  $("aucnota").textContent = `Mínimo para desplegar: ${g.auc_minimo} (config/pipeline_config.yml, sección cd)`;
+  $("champion").textContent = "v" + g.version;
+  $("modelo").textContent = g.modelo || "";
+  $("periodo").textContent = h.periodo;
+  $("refnota").textContent = `Comparado contra el mes de referencia ${h.referencia}`;
+  $("alerta").innerHTML = `<span class="chip ${h.alerta}">${h.alerta}</span>`;
+  $("tabla").innerHTML = h.etapas.map(e => `<tr><td>${e.etapa}</td><td>${e.psi == null ? "-" : Number(e.psi).toFixed(4)}</td>
+    <td><span class="chip ${e.estado}">${e.estado}</span></td><td>${(e.top5 || []).map(t => t.feature).join(", ") || "-"}</td></tr>`).join("");
+  const enlace = (t, u) => h.repo.endsWith("github.com") ? t : `<a href="${u}" target="_blank" rel="noopener">${t}</a>`;
+  $("trazab").innerHTML = [["Commit", enlace(h.commit, `${h.repo}/commit/${h.commit}`)], ["Run de GitHub Actions", enlace(h.run_id, `${h.repo}/actions/runs/${h.run_id}`)],
+    ["Runner", h.runner], ["Hash de la configuración", h.config_hash], ["Fecha", h.fecha]].map(r => `<tr><th>${r[0]}</th><td>${r[1]}</td></tr>`).join("");
+}
+sel.onchange = () => pintar(H[sel.value]);
+document.querySelectorAll("button[data-panel]").forEach(b => b.onclick = () => {
+  document.querySelectorAll("button[data-panel]").forEach(x => x.classList.toggle("activo", x === b));
+  document.querySelectorAll(".panel").forEach(p => p.classList.toggle("visible", p.id === b.dataset.panel)); });
+if (H.length) pintar(H[H.length - 1]);
+</script>
+</body>
+</html>
