@@ -15,6 +15,7 @@ mlflow:
 data:
   raw_dir: "data/raw"                  # caché local de los pN_extrac.csv (no se versiona)
   drive_folder: "1ZaKpwjUIt754fDc947y2FTFPLOmksig-"   # S14: carpeta del curso en Drive; los datos siempre se bajan de aquí
+  fecha_p1: 20220301                   # S14: p_fecinformacion de p1; el mes p debe ser p1 + (p - 1) meses
   processed_dir: "data/processed"
   inference_dir: "data/inference"      # salidas por periodo: data/inference/p7/...
   monitoring_dir: "data/monitoring"    # reportes por periodo: data/monitoring/p7/...

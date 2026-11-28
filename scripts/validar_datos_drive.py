@@ -8,16 +8,17 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src.config import load_config, raw_path  # noqa: E402
 from src.drive import asegurar_mes  # noqa: E402
 
-FECHA_P1 = 20220301
+cfg = load_config()
+d = cfg["data"]
 
 
 def fecha_esperada(p):
-    anio, m = divmod(2 + (p - 1), 12)
-    return (2022 + anio) * 10000 + (m + 1) * 100 + 1
+    """p_fecinformacion esperada del mes p, a partir de data.fecha_p1 de la configuración."""
+    base = d["fecha_p1"]
+    anio, m = divmod(base // 100 % 100 - 1 + (p - 1), 12)
+    return (base // 10000 + anio) * 10000 + (m + 1) * 100 + 1
 
 
-cfg = load_config()
-d = cfg["data"]
 meses = sorted(set(d["training_periods"]) | {cfg["monitoring"]["reference_period"], cfg["inference"]["default_period"]})
 errores = []
 for p in meses:
